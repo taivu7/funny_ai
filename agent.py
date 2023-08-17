@@ -3,9 +3,18 @@ import random
 import torch.nn as nn
 import torch.nn.functional as F
 import torch
+import math
 
 Transition = namedtuple('Transition', 
                         ('state', 'action', 'next_state', 'reward'))
+
+BATCH_SIZE = 128
+GAMMA = 0.99
+EPS_START = 0.9
+EPS_END = 0.05
+EPS_DECAY = 1000
+TAU = 0.005
+LR = 1e-4
 
 class ReplayMemory(object):
 
@@ -47,8 +56,27 @@ class DQN(nn.Module):
         x = F.relu(self.layer3(x))
         return x
 
-def select_action(state):
+def select_action(state, policy_net, env):
+    """ Agent does a action to interact with the environment
+
+    Args:
+        state (_type_): _description_
+        policy_net (_type_): _description_
+        env (_type_): _description_
+
+    Returns:
+        _type_: _description_
+    """
 
     global steps_done
     sample = random.random()
-    return torch.tensor()
+    eps_threshold = EPS_END + (EPS_START - EPS_END) *\
+          math.exp(-1.0 * steps_done / EPS_DECAY)
+    
+    if sample > eps_threshold:
+        with torch.no_grad():
+            return policy_net(state).max(1)[1].view(1, 1)
+    else:
+        # Action randomly
+        return torch.tensor([[env.action_space.sample()]], dtype=torch.long)
+        
