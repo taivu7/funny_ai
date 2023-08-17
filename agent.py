@@ -2,6 +2,7 @@ from collections import namedtuple, deque
 import random
 import torch.nn as nn
 import torch.nn.functional as F
+import torch
 
 Transition = namedtuple('Transition', 
                         ('state', 'action', 'next_state', 'reward'))
@@ -45,3 +46,9 @@ class DQN(nn.Module):
         x = F.relu(self.layer2(x))
         x = F.relu(self.layer3(x))
         return x
+
+def select_action(state):
+
+    global steps_done
+    sample = random.random()
+    return torch.tensor()
