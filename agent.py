@@ -3,7 +3,9 @@ import random
 import torch.nn as nn
 import torch.nn.functional as F
 import torch
+import torch.optim as optim
 import math
+from gymnasium.core import Env
 
 Transition = namedtuple('Transition', 
                         ('state', 'action', 'next_state', 'reward'))
@@ -56,27 +58,41 @@ class DQN(nn.Module):
         x = F.relu(self.layer3(x))
         return x
 
-def select_action(state, policy_net, env):
-    """ Agent does a action to interact with the environment
+class Agent:
 
-    Args:
-        state (_type_): _description_
-        policy_net (_type_): _description_
-        env (_type_): _description_
+    def __init__(self, n_observations, n_actions, mem_capacity, device):
+        self.n_observations = n_observations
+        self.n_actions = n_actions
+        self.memory = ReplayMemory(mem_capacity)
+        self.device = device
+        self.policy_net = DQN(n_observations, n_actions).to(device)
+        self.target_net = DQN(n_observations, n_actions).to(device)
+        self.target_net.load_state_dict(self.policy_net.state_dict())
 
-    Returns:
-        _type_: _description_
-    """
+        self.step_done = 0
 
-    global steps_done
-    sample = random.random()
-    eps_threshold = EPS_END + (EPS_START - EPS_END) *\
-          math.exp(-1.0 * steps_done / EPS_DECAY)
-    
-    if sample > eps_threshold:
-        with torch.no_grad():
-            return policy_net(state).max(1)[1].view(1, 1)
-    else:
-        # Action randomly
-        return torch.tensor([[env.action_space.sample()]], dtype=torch.long)
+        # optimizer
+        self.optimizer = optim.AdamW(self.policy_net.parameters(), lr=LR, amsgrad=True)
+
+    def env_interact(self, state, env: Env):
+        """ Select action based on e-greedy
+        """
+
+        # generate a random value
+        random_value = random.random()
+        eps_value = EPS_END + (EPS_START - EPS_END) * \
+            math.exp(-1.0 * self.step_done / EPS_DECAY)
         
+        self.step_done += 1
+
+        # with torch.no_grad():
+        #     tmp = self.policy_net(state)
+        #     print(f"Output of network: {tmp}")
+        #     print(f"Max of network: {tmp.max(1)[1].view(1, 1)}")
+
+        if random_value > eps_value:
+            with torch.no_grad():
+                return self.policy_net(state).max(1)[1].view(1, 1)
+        else:
+            return torch.tensor([[env.action_space.sample()]], dtype=torch.long,
+                                device = self.device)
