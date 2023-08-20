@@ -96,3 +96,50 @@ class Agent:
         else:
             return torch.tensor([[env.action_space.sample()]], dtype=torch.long,
                                 device = self.device)
+    
+    def optimize_model(self):
+
+        if len(self.memory) < BATCH_SIZE:
+            return
+        
+        sample = self.memory.sample(BATCH_SIZE)
+        batch = Transition(*zip(*sample))
+
+        # Aggregate data in each field into batch variables
+        non_final_mask = torch.tensor(
+            tuple(map(lambda s: s is not None, batch.next_state)),
+            dtype = torch.bool,
+            device = self.device
+        )
+
+        non_final_next_states = torch.cat(
+            [s for s in batch.next_state if s is not None],
+            dim = 0
+        )
+
+        state_batch = torch.cat(batch.action)
+        action_batch = torch.cat(batch.action)
+        reward_batch = torch.cat(batch.reward)
+
+        state_action_value = self.policy_net(state_batch).gather(1, action_batch) # 2-d array whose shape is (batch_size, 1)
+
+        next_state_values = torch.zeros(BATCH_SIZE, device = self.device)
+
+        with torch.no_grad():
+            next_state_values[non_final_mask] = self.target_net(non_final_next_states).max(1)[0]
+            # The shape of next_state_values is a 1-d array whose size (BATCH_SIZE)
+        
+        # Compute the expected Q values
+        expected_state_action_val = (next_state_values * GAMMA) + reward_batch
+
+        # Compute loss
+        criterion = nn.SmoothL1Loss()
+        loss = criterion(state_action_value, expected_state_action_val.unsqueeze(1))
+
+        # Optimize
+        self.optimizer.zero_grad()
+        loss.backward()
+
+        #In-place gradient clipping and update weight
+        torch.nn.utils.clip_grad_value_(self.policy_net.parameters(), 100)
+        self.optimizer.step()
