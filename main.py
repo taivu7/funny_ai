@@ -47,6 +47,13 @@ if __name__ == "__main__":
                 break
 
             #@TODO: Implement training model
+            mb_agen.optimize_model()
+
+            target_net_state_dict = mb_agen.target_net.state_dict()
+            policy_net_state_dict = mb_agen.policy_net.state_dict()
+
+            for key in policy_net_state_dict:
+                target_net_state_dict[key] = 
         
     sample_observation = mb_agen.memory.sample(5)
     m = Transition(*zip(*sample_observation))
@@ -57,5 +64,5 @@ if __name__ == "__main__":
     with torch.no_grad():
         result = mb_agen.policy_net(state_batch).gather(1, action_batch)
 
-    print(f"The value of result: {result.shape }")
+    print(f"The value of result: {result.shape}")
     print(f"The value of action_batch: {action_batch}")
